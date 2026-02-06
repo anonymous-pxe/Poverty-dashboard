@@ -1,0 +1,19 @@
+PLACEHOLDER FOR LOGO IMAGE
+
+This is a placeholder file for the dashboard logo.
+
+To add a logo:
+1. Create or obtain a PNG image file (recommended size: 200x200 pixels)
+2. Replace this file with your logo image named "logo.png"
+3. The logo will be displayed in the sidebar and reports
+
+Recommended specifications:
+- Format: PNG with transparent background
+- Size: 200x200 pixels
+- File size: < 100KB
+- Colors: Should match the dashboard color scheme
+
+You can use online tools like:
+- Canva (https://www.canva.com/)
+- Logo Maker (https://www.freelogodesign.org/)
+- Or hire a designer for a custom logo
