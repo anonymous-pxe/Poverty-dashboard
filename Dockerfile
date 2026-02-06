@@ -1,5 +1,5 @@
-# Use a fuller Python image (avoids apt-get issues)
-FROM python:3.9
+# Use a Debian-based Python image (more stable apt sources)
+FROM python:3.9-bullseye
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
-    software-properties-common \
+    ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
