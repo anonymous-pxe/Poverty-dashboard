@@ -1,4 +1,5 @@
-FROM python:3.9-slim
+# Use a fuller Python image (avoids apt-get issues)
+FROM python:3.9
 
 WORKDIR /app
 
