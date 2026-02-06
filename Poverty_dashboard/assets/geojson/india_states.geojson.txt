@@ -1,0 +1,49 @@
+PLACEHOLDER FOR INDIA STATES GEOJSON
+
+This is a placeholder for India states GeoJSON file.
+
+To add the GeoJSON map data:
+
+1. Download India states GeoJSON from one of these sources:
+   - DataMeet: http://projects.datameet.org/maps/
+   - GitHub: https://github.com/datameet/maps
+   - ArcGIS: https://www.arcgis.com/
+
+2. Replace this file with the actual GeoJSON data named "india_states.geojson"
+
+3. Expected GeoJSON structure:
+   {
+     "type": "FeatureCollection",
+     "features": [
+       {
+         "type": "Feature",
+         "properties": {
+           "ST_NM": "State Name",
+           "ST_CODE": "01"
+         },
+         "geometry": {
+           "type": "Polygon",
+           "coordinates": [...]
+         }
+       },
+       ...
+     ]
+   }
+
+4. Ensure state names in the GeoJSON match the state names in your data
+
+5. Update the choropleth map function in utils/visualization.py to use this file:
+   
+   import json
+   with open('assets/geojson/india_states.geojson', 'r') as f:
+       geojson_data = json.load(f)
+   
+   fig = px.choropleth_mapbox(
+       data,
+       geojson=geojson_data,
+       locations='state',
+       featureidkey='properties.ST_NM',
+       ...
+   )
+
+Alternative: Use simplified state boundaries or scatter plot on map as interim solution.
