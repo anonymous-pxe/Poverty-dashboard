@@ -2,8 +2,8 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies with retry logic
+RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     software-properties-common \
