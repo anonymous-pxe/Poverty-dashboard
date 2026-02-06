@@ -37,8 +37,15 @@ load_css()
 def main():
     """Main application logic"""
     
+    # Initialize session state for navigation if not exists
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "Dashboard"
+    
     # Render sidebar and get navigation selection
     page_selection, filters = render_sidebar()
+    
+    # Update current page in session state
+    st.session_state.current_page = page_selection
     
     # Page routing
     if page_selection == "Dashboard":

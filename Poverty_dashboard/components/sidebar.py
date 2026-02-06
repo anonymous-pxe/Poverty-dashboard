@@ -34,7 +34,8 @@ def render_sidebar():
                 "Reports",
                 "Learn More"
             ],
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            key="page_navigation"
         )
         
         st.markdown("---")
