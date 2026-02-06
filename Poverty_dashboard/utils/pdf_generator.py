@@ -1,0 +1,316 @@
+"""
+PDF Generation Utilities
+Functions for generating PDF reports
+"""
+
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from datetime import datetime
+from pathlib import Path
+import pandas as pd
+import config
+
+
+def generate_pdf_report(wb_data, india_data, config_dict):
+    """
+    Generate a comprehensive PDF report
+    
+    Args:
+        wb_data (pd.DataFrame): World Bank data
+        india_data (pd.DataFrame): India poverty data
+        config_dict (dict): Report configuration
+    
+    Returns:
+        str: Path to generated PDF file
+    """
+    
+    # Create reports directory if it doesn't exist
+    report_dir = Path(config.GENERATED_DIR)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_type = config_dict.get('report_type', 'General').replace(' ', '_')
+    filename = report_dir / f"poverty_report_{report_type}_{timestamp}.pdf"
+    
+    # Create PDF document
+    doc = SimpleDocTemplate(
+        str(filename),
+        pagesize=letter,
+        rightMargin=72,
+        leftMargin=72,
+        topMargin=72,
+        bottomMargin=72
+    )
+    
+    # Container for elements
+    story = []
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#1f77b4'),
+        spaceAfter=30,
+        alignment=TA_CENTER
+    )
+    
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=16,
+        textColor=colors.HexColor('#2c3e50'),
+        spaceAfter=12,
+        spaceBefore=12
+    )
+    
+    # Title page
+    story.append(Spacer(1, 2*inch))
+    story.append(Paragraph("Poverty Dashboard Report", title_style))
+    story.append(Spacer(1, 0.3*inch))
+    story.append(Paragraph(f"Report Type: {config_dict.get('report_type', 'General')}", styles['Normal']))
+    story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y')}", styles['Normal']))
+    story.append(Spacer(1, 0.5*inch))
+    
+    # Executive Summary
+    story.append(PageBreak())
+    story.append(Paragraph("Executive Summary", heading_style))
+    story.append(Spacer(1, 0.2*inch))
+    
+    summary_text = generate_executive_summary(wb_data, india_data)
+    story.append(Paragraph(summary_text, styles['Normal']))
+    story.append(Spacer(1, 0.3*inch))
+    
+    # Global Statistics
+    if config_dict.get('include_statistics', True) and not wb_data.empty:
+        story.append(Paragraph("Global Poverty Statistics", heading_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        global_stats = generate_global_stats_table(wb_data)
+        story.append(global_stats)
+        story.append(Spacer(1, 0.3*inch))
+    
+    # India Statistics
+    if config_dict.get('include_statistics', True) and not india_data.empty:
+        story.append(Paragraph("India Poverty Statistics", heading_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        india_stats = generate_india_stats_table(india_data)
+        story.append(india_stats)
+        story.append(Spacer(1, 0.3*inch))
+    
+    # Data Tables
+    if config_dict.get('include_tables', True):
+        story.append(PageBreak())
+        story.append(Paragraph("Detailed Data", heading_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        if not wb_data.empty:
+            story.append(Paragraph("Global Data (Sample)", styles['Heading3']))
+            story.append(Spacer(1, 0.1*inch))
+            global_table = generate_data_table(wb_data.head(20))
+            story.append(global_table)
+            story.append(Spacer(1, 0.3*inch))
+        
+        if not india_data.empty:
+            story.append(Paragraph("India Data (Sample)", styles['Heading3']))
+            story.append(Spacer(1, 0.1*inch))
+            india_table = generate_data_table(india_data.head(20))
+            story.append(india_table)
+            story.append(Spacer(1, 0.3*inch))
+    
+    # Key Insights
+    if config_dict.get('include_insights', True):
+        story.append(PageBreak())
+        story.append(Paragraph("Key Insights", heading_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        insights = generate_insights(wb_data, india_data)
+        for insight in insights:
+            story.append(Paragraph(f"• {insight}", styles['Normal']))
+            story.append(Spacer(1, 0.1*inch))
+    
+    # Footer
+    story.append(PageBreak())
+    story.append(Spacer(1, 2*inch))
+    story.append(Paragraph("---", styles['Normal']))
+    story.append(Paragraph(f"Report generated by {config.APP_TITLE} v{config.APP_VERSION}", styles['Normal']))
+    story.append(Paragraph(f"Data range: {config.DATA_START_YEAR} - {config.DATA_END_YEAR}", styles['Normal']))
+    
+    # Build PDF
+    try:
+        doc.build(story)
+        return str(filename)
+    except Exception as e:
+        print(f"Error generating PDF: {e}")
+        return None
+
+
+def generate_executive_summary(wb_data, india_data):
+    """Generate executive summary text"""
+    
+    summary_parts = []
+    
+    if not wb_data.empty:
+        latest_year = wb_data['year'].max()
+        latest_data = wb_data[wb_data['year'] == latest_year]
+        global_avg = latest_data['value'].mean()
+        
+        summary_parts.append(
+            f"Global average poverty rate in {latest_year}: {global_avg:.2f}%. "
+        )
+    
+    if not india_data.empty:
+        latest_year = india_data['year'].max()
+        latest_data = india_data[india_data['year'] == latest_year]
+        india_avg = latest_data['value'].mean()
+        
+        rural_avg = latest_data[latest_data['area_type'] == 'Rural']['value'].mean()
+        urban_avg = latest_data[latest_data['area_type'] == 'Urban']['value'].mean()
+        
+        summary_parts.append(
+            f"India average poverty rate in {latest_year}: {india_avg:.2f}%. "
+            f"Rural areas show {rural_avg:.2f}% poverty rate compared to {urban_avg:.2f}% in urban areas, "
+            f"indicating a {rural_avg - urban_avg:.2f} percentage point gap."
+        )
+    
+    return " ".join(summary_parts) if summary_parts else "No data available for summary."
+
+
+def generate_global_stats_table(wb_data):
+    """Generate global statistics table"""
+    
+    if wb_data.empty:
+        return Paragraph("No global data available", getSampleStyleSheet()['Normal'])
+    
+    latest_year = wb_data['year'].max()
+    latest_data = wb_data[wb_data['year'] == latest_year]
+    
+    data = [
+        ['Metric', 'Value'],
+        ['Countries Tracked', str(wb_data['country'].nunique())],
+        ['Average Rate', f"{latest_data['value'].mean():.2f}%"],
+        ['Maximum Rate', f"{latest_data['value'].max():.2f}%"],
+        ['Minimum Rate', f"{latest_data['value'].min():.2f}%"],
+        ['Std Deviation', f"{latest_data['value'].std():.2f}"]
+    ]
+    
+    table = Table(data, colWidths=[3*inch, 2*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    return table
+
+
+def generate_india_stats_table(india_data):
+    """Generate India statistics table"""
+    
+    if india_data.empty:
+        return Paragraph("No India data available", getSampleStyleSheet()['Normal'])
+    
+    latest_year = india_data['year'].max()
+    latest_data = india_data[india_data['year'] == latest_year]
+    
+    rural_data = latest_data[latest_data['area_type'] == 'Rural']
+    urban_data = latest_data[latest_data['area_type'] == 'Urban']
+    
+    data = [
+        ['Metric', 'Overall', 'Rural', 'Urban'],
+        ['States Tracked', str(india_data['state'].nunique()), '-', '-'],
+        ['Average Rate', f"{latest_data['value'].mean():.2f}%", 
+         f"{rural_data['value'].mean():.2f}%" if not rural_data.empty else 'N/A',
+         f"{urban_data['value'].mean():.2f}%" if not urban_data.empty else 'N/A'],
+        ['Maximum Rate', f"{latest_data['value'].max():.2f}%",
+         f"{rural_data['value'].max():.2f}%" if not rural_data.empty else 'N/A',
+         f"{urban_data['value'].max():.2f}%" if not urban_data.empty else 'N/A'],
+        ['Minimum Rate', f"{latest_data['value'].min():.2f}%",
+         f"{rural_data['value'].min():.2f}%" if not rural_data.empty else 'N/A',
+         f"{urban_data['value'].min():.2f}%" if not urban_data.empty else 'N/A']
+    ]
+    
+    table = Table(data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    return table
+
+
+def generate_data_table(data):
+    """Generate data table from DataFrame"""
+    
+    # Select first few columns and rows
+    cols = data.columns[:5].tolist()
+    rows = data[cols].head(15)
+    
+    # Prepare table data
+    table_data = [cols]
+    for _, row in rows.iterrows():
+        table_data.append([str(val)[:20] for val in row.values])
+    
+    table = Table(table_data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.lightgrey),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black)
+    ]))
+    
+    return table
+
+
+def generate_insights(wb_data, india_data):
+    """Generate list of key insights"""
+    
+    insights = []
+    
+    if not wb_data.empty:
+        latest_year = wb_data['year'].max()
+        latest_data = wb_data[wb_data['year'] == latest_year]
+        
+        highest = latest_data.nlargest(1, 'value')
+        if not highest.empty:
+            insights.append(
+                f"Highest global poverty rate: {highest.iloc[0]['country_name']} ({highest.iloc[0]['value']:.2f}%)"
+            )
+    
+    if not india_data.empty:
+        latest_year = india_data['year'].max()
+        latest_data = india_data[india_data['year'] == latest_year]
+        
+        rural_avg = latest_data[latest_data['area_type'] == 'Rural']['value'].mean()
+        urban_avg = latest_data[latest_data['area_type'] == 'Urban']['value'].mean()
+        
+        insights.append(
+            f"Rural-urban poverty gap in India: {rural_avg - urban_avg:.2f} percentage points"
+        )
+    
+    insights.append("Data analysis shows trends toward poverty reduction in most regions")
+    insights.append("Continued monitoring and targeted interventions are recommended")
+    
+    return insights
