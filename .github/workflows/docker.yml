@@ -27,4 +27,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: pr3ein/poverty_dashboard:latest,pr3ein/poverty_dashboard:main
+          tags: pr1nxe/poverty_dashboard:latest,pr1nxe/poverty_dashboard:main
